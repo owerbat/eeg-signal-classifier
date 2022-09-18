@@ -1,5 +1,6 @@
 ipykernel
 pymatreader
-matplotlib
 pandas
 pyarrow
+plotly
+nbformat
