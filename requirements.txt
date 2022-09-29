@@ -5,3 +5,4 @@ pyarrow
 plotly
 nbformat
 scipy
+scikit-learn
