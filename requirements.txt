@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 ipykernel
 pymatreader
 pandas
@@ -6,3 +7,4 @@ plotly
 nbformat
 scipy
 scikit-learn
+torch
