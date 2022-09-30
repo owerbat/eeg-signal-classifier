@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 from pymatreader import read_mat
-from typing import List
+from typing import List, Union
 
 from eegsc.utils.path import get_data_path
 
@@ -19,7 +19,22 @@ def _get_max_shape(raw_data: dict):
     return max_shape
 
 
-def _extract_data(raw_data: dict, data_type: str, max_shape: int, save: bool):
+def _extract_data(raw_data: Union[dict, str], data_type: str, save: bool):
+    info_path = os.path.join(get_data_path(), f'{data_type}_info.parquet')
+    times_path = os.path.join(get_data_path(), f'{data_type}_times.npy')
+    trials_path = os.path.join(get_data_path(), f'{data_type}_trials.npy')
+
+    if os.path.exists(info_path) and os.path.exists(times_path) and \
+        os.path.exists(trials_path):
+        info = pd.read_parquet(info_path)
+        times = np.load(times_path)
+        trials = np.load(trials_path)
+
+        return info, times, trials, raw_data
+
+    raw_data = read_mat(raw_data) if isinstance(raw_data, str) else raw_data
+    max_shape = _get_max_shape(raw_data)
+
     sensors_num = 32
     trials_num = sum([len(person[data_type]['time']) for person in raw_data['subs_ica']])
 
@@ -49,20 +64,21 @@ def _extract_data(raw_data: dict, data_type: str, max_shape: int, save: bool):
     })
 
     if save:
-        info.to_parquet(os.path.join(get_data_path(), f'{data_type}_info.parquet'))
-        np.save(os.path.join(get_data_path(), f'{data_type}_times.npy'), times)
-        np.save(os.path.join(get_data_path(), f'{data_type}_trials.npy'), trials)
+        info.to_parquet(info_path)
+        np.save(times_path, times)
+        np.save(trials_path, trials)
 
-    return info, times, trials
+    return info, times, trials, raw_data
 
 
 def read_raw(path: str,
-             data_types: List[str] = ['right_real', 'left_real'],
-             save: bool = False):
-    raw_data = read_mat(path)
-    max_shape = _get_max_shape(raw_data)
-
+             data_types: List[str] = ['left_real', 'right_real'],
+             save: bool = True):
+    raw_data = path
     result = {}
+
     for data_type in data_types:
-        result[data_type] = _extract_data(raw_data, data_type, max_shape, save)
+        info, times, trials, raw_data = _extract_data(raw_data, data_type, save)
+        result[data_type] = (info, times, trials)
+
     return result

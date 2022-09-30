@@ -10,6 +10,9 @@ class SpectrumTransformer:
                  order: int = 2,
                  signal_duration: float = 10,
                  psd_method: str = 'periodogram') -> None:
+        self.order = order
+        self.psd_method = psd_method
+
         self.filters = {
             'delta': BandPassFilter(order, 1, 4, signal_duration),
             'theta': BandPassFilter(order, 4, 8, signal_duration),
