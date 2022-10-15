@@ -30,6 +30,50 @@ class GRUNet(nn.Module):
         return out
 
 
+class StackingGRUNet(nn.Module):
+    def __init__(self, input_size: int,
+                       hidden_size: int,
+                       fc_size: int,
+                       n_layers: int,
+                       n_classes: int,
+                       device: str = 'cpu') -> None:
+        super().__init__()
+
+        self.hidden_size = hidden_size
+        self.n_layers = n_layers
+        self.device = device
+
+        self.sensors_num = 32
+        assert input_size % self.sensors_num == 0, 'input_size shape is not correct'
+        self.spectrum_size = int(input_size / self.sensors_num)
+
+        self.grus = [nn.GRU(self.sensors_num, hidden_size, n_layers).to(device)
+                     for _ in range(self.spectrum_size)]
+        self.fcs = [nn.Linear(hidden_size, fc_size).to(device)
+                    for _ in range(self.spectrum_size)]
+        self.final_fc = nn.Linear(fc_size * self.spectrum_size, n_classes).to(device) 
+        self.softmax = nn.LogSoftmax(dim=1)
+
+    def forward(self, x):
+        outs = []
+        for i in range(self.spectrum_size):
+            h0 = torch.zeros(self.n_layers, self.hidden_size).to(self.device)
+
+            start_idx = i * self.sensors_num
+            end_idx = (i + 1) * self.sensors_num
+
+            out, _ = self.grus[i](x[:, start_idx: end_idx], h0)
+            out = self.fcs[i](out[-1:, :])
+
+            outs.append(out)
+
+        common_out = torch.cat(outs, dim=1)
+        common_out = self.final_fc(common_out)
+        out = self.softmax(common_out)
+
+        return out
+
+
 def train_gru(model: GRUNet,
               x_train: np.ndarray,
               y_train: np.ndarray,
