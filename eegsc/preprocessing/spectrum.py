@@ -33,16 +33,23 @@ class SpectrumTransformer:
             for name in ['original'] + list(self.filters.keys()):
                 self.columns += [f'{name}_{col}' for col in transformer.columns]
 
-    def transform(self, signals: np.ndarray):
+    def transform(self, signals: np.ndarray, compute_stat: bool = True):
         spectrum_signals = {'original': signals}
         for name, filter in self.filters.items():
             spectrum_signals[name] = filter.filter(signals)
 
-        spectrum_statistics = []
-        for transformer in self.transformers:
-            spectrum_statistics += [
-                transformer.transform(spectrum_signal)
-                for _, spectrum_signal in spectrum_signals.items()
-            ]
+        if compute_stat:
+            spectrum_statistics = []
 
-        return np.hstack(spectrum_statistics)
+            for transformer in self.transformers:
+                spectrum_statistics += [
+                    transformer.transform(spectrum_signal)
+                    for _, spectrum_signal in spectrum_signals.items()
+                ]
+
+            return np.hstack(spectrum_statistics)
+        else:
+            return np.concatenate(
+                [spectrum_signal for _, spectrum_signal in spectrum_signals.items()],
+                axis=1
+            )

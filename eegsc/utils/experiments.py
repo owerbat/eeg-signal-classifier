@@ -6,11 +6,13 @@ from eegsc.preprocessing.spectrum import SpectrumTransformer
 from eegsc.utils.path import get_data_path, make_dir
 
 
-def create_statistics_dataset(data: dict,
-                              bandpass_filter: BandPassFilter,
-                              spectrum_transformer: SpectrumTransformer):
+def create_spectrum_dataset(data: dict,
+                            bandpass_filter: BandPassFilter,
+                            spectrum_transformer: SpectrumTransformer,
+                            compute_stat: bool = True,
+                            save: bool = True):
     hash = f'{bandpass_filter.order}_{spectrum_transformer.order}_' + \
-           f'{spectrum_transformer.psd_method}'
+           f'{spectrum_transformer.psd_method}_{compute_stat}'
     root_path = make_dir(os.path.join(get_data_path(), 'statistics_dataset', hash))
     statistics = []
     labels = []
@@ -23,9 +25,10 @@ def create_statistics_dataset(data: dict,
         else:
             trials = value[2]
             filtered_trials = bandpass_filter.filter(trials)
-            statistic = spectrum_transformer.transform(filtered_trials)
+            statistic = spectrum_transformer.transform(filtered_trials, compute_stat)
 
-            np.save(statistic_path, statistic)
+            if save:
+                np.save(statistic_path, statistic)
 
         statistics.append(statistic)
         labels += [i] * statistic.shape[0]
