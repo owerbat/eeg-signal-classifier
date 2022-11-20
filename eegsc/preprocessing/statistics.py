@@ -59,7 +59,7 @@ class FrequencyStatisticsTransformer(BaseStatisticsTransformer):
         super().__init__(metrics)
 
     def transform(self, signals: np.ndarray):
-        psd = np.full((signals.shape[0], signals.shape[1], ceil(signals.shape[2] / 2)),
+        psd = np.full((signals.shape[0], signals.shape[1], ceil(signals.shape[2] / 2) + 1),
                       np.nan)
 
         for i, signal in enumerate(signals):
