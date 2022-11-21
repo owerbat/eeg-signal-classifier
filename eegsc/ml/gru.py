@@ -1,7 +1,10 @@
+from typing import Any
+
 import numpy as np
 import torch
 import torch.nn as nn
-from tqdm import tqdm
+
+from .common import train_net, predict_net
 
 
 class GRUNet(nn.Module):
@@ -106,88 +109,38 @@ class StackingGRUNet(nn.Module):
         return out
 
 
-def train_gru(model: GRUNet,
+def _gru_trial_proc_func(trial: np.ndarray):
+    actual_len = trial[0][~np.isnan(trial[0])].shape[0]
+    return trial[:, :actual_len].T
+
+
+def train_gru(model: Any,
               x_train: np.ndarray,
               y_train: np.ndarray,
               x_test: np.ndarray,
               y_test: np.ndarray,
-              criterion,
-              optimizer,
+              criterion: Any,
+              optimizer: Any,
               n_epochs: int = 10):
-    model.to(model.device)
-
-    for epoch in range(n_epochs):
-        train_loss = 0
-        train_total = 0
-        train_correct = 0
-
-        model.train()
-
-        for trial, label in tqdm(zip(x_train, y_train)):
-            actual_len = trial[0][~np.isnan(trial[0])].shape[0]
-            trial = trial[:, :actual_len].T
-            label = np.array([label])
-
-            trial = torch.from_numpy(trial).to(model.device).float()
-            label = torch.from_numpy(label).to(model.device).long()
-
-            out = model(trial)
-            loss = criterion(out, label)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            train_loss += loss.item()
-            _, predicted = torch.max(out.data, 1)
-            train_total += label.size(0)
-            train_correct += (predicted == label).sum().item()
-
-        _, test_loss, test_accuracy = predict_gru(model,
-                                                  x_test,
-                                                  y_test,
-                                                  criterion,
-                                                  compute_loss=True)
-
-        print(f'Epoch {epoch + 1} | train_loss = {train_loss}, ' \
-              f'train_accuracy = {train_correct / train_total} | ' \
-              f'test_loss = {test_loss}, test_accuracy = {test_accuracy}')
-
-    return model
+    return train_net(trial_proc_func=_gru_trial_proc_func,
+                     model=model,
+                     x_train=x_train,
+                     y_train=y_train,
+                     x_test=x_test,
+                     y_test=y_test,
+                     criterion=criterion,
+                     optimizer=optimizer,
+                     n_epochs=n_epochs)
 
 
 def predict_gru(model: GRUNet,
                 x_test: np.ndarray,
                 y_test: np.ndarray = None,
-                criterion=None,
+                criterion: Any = None,
                 compute_loss: bool = False):
-    model.to(model.device)
-    model.eval()
-
-    result = []
-    test_loss = 0
-    test_total = 0
-    test_correct = 0
-
-    with torch.no_grad():
-        for trial, label in tqdm(zip(x_test, y_test)):
-            actual_len = trial[0][~np.isnan(trial[0])].shape[0]
-            trial = trial[:, :actual_len].T
-            label = np.array([label])
-
-            trial = torch.from_numpy(trial).to(model.device).float()
-            label = torch.from_numpy(label).to(model.device).long()
-
-            out = model(trial)
-            _, predicted = torch.max(out.data, 1)
-
-            test_loss += criterion(out, label).item()
-            test_total += label.size(0)
-            test_correct += (predicted == label).sum().item()
-
-            result.append(predicted.item())
-
-    if compute_loss:
-        return np.array(result), test_loss, test_correct / test_total
-    else:
-        return np.array(result)
+    return predict_net(trial_proc_func=_gru_trial_proc_func,
+                       model=model,
+                       x_test=x_test,
+                       y_test=y_test,
+                       criterion=criterion,
+                       compute_loss=compute_loss)
