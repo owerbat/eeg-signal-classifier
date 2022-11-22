@@ -108,12 +108,14 @@ class ConvNet(nn.Module):
                  input_shape: tuple,
                  n_classes: int,
                  kernel_size: int = 5,
+                 fc_size: int = 0,
                  device: str = 'cpu') -> None:
         super().__init__()
 
         self.input_shape = input_shape
         self.n_classes = n_classes
         self.kernel_size = kernel_size
+        self.fc_size = fc_size
         self.padding = self.kernel_size // 2
         self.device = device
 
@@ -121,94 +123,61 @@ class ConvNet(nn.Module):
         assert input_shape[0] % self.sensors_num == 0, 'input_shape is not correct'
         self.spectrum_size = input_shape[0] // self.sensors_num
 
-        in_channels = self.spectrum_size
-        out_channels = max(self.spectrum_size // 2, 1)
-        self.conv1 = ConvUnit(in_channels=in_channels,
-                              out_channels=out_channels,
-                              height=self.sensors_num,
-                              width=self.input_shape[1],
-                              kernel_size=self.kernel_size,
-                              stride=(1, 3),
-                              padding=self.padding,
-                              device=self.device)
+        self.conv1 = ConvUnit(in_channels=self.spectrum_size,
+                         out_channels=self.spectrum_size * 2,
+                         height=self.sensors_num,
+                         width=self.input_shape[1],
+                         kernel_size=(5, 7),
+                         stride=(2, 4),
+                         padding=(2, 3))
 
-        in_channels = out_channels
-        out_channels = max(out_channels // 2, 1)
-        self.conv2 = ConvUnit(in_channels=in_channels,
-                              out_channels=out_channels,
-                              height=self.conv1.out_height,
-                              width=self.conv1.out_width,
-                              kernel_size=self.kernel_size,
-                              stride=(1, 3),
-                              padding=self.padding,
-                              device=self.device)
+        self.pool1 = PoolUnit(height=self.conv1.out_height,
+                         width=self.conv1.out_width,
+                         kernel_size=(1, 3),
+                         stride=(1, 3),
+                         padding=(0, 1))
 
-        self.pool1 = PoolUnit(height=self.conv2.out_height,
-                              width=self.conv2.out_width,
-                              kernel_size=3,
-                              stride=(1, 2),
-                              padding=1,
-                              device=self.device)
+        self.conv2 = ConvUnit(in_channels=self.conv1.out_channels,
+                 out_channels=self.conv1.out_channels * 2,
+                 height=self.pool1.out_height,
+                 width=self.pool1.out_width,
+                 kernel_size=(5, 7),
+                 stride=(2, 4),
+                 padding=(2, 3))
 
-        in_channels = out_channels
-        out_channels = max(out_channels // 2, 1)
-        self.conv3 = ConvUnit(in_channels=in_channels,
-                              out_channels=out_channels,
-                              height=self.pool1.out_height,
-                              width=self.pool1.out_width,
-                              kernel_size=self.kernel_size,
-                              stride=(1, 3),
-                              padding=self.padding,
-                              device=self.device)
+        self.pool2 = PoolUnit(height=self.conv2.out_height,
+                         width=self.conv2.out_width,
+                         kernel_size=(1, 3),
+                         stride=(1, 3),
+                         padding=(0, 1))
 
-        in_channels = out_channels
-        out_channels = max(out_channels // 2, 1)
-        self.conv4 = ConvUnit(in_channels=in_channels,
-                              out_channels=out_channels,
-                              height=self.conv3.out_height,
-                              width=self.conv3.out_width,
-                              kernel_size=self.kernel_size,
-                              stride=(1, 3),
-                              padding=self.padding,
-                              device=self.device)
+        self.conv3 = ConvUnit(in_channels=self.conv2.out_channels,
+                 out_channels=self.conv2.out_channels * 2,
+                 height=self.pool2.out_height,
+                 width=self.pool2.out_width,
+                 kernel_size=(5, 7),
+                 stride=(2, 4),
+                 padding=(2, 3))
 
-        self.pool2 = PoolUnit(height=self.conv4.out_height,
-                              width=self.conv4.out_width,
-                              kernel_size=3,
-                              stride=(2, 2),
-                              padding=1,
-                              device=self.device)
+        self.pool3 = PoolUnit(height=self.conv3.out_height,
+                         width=self.conv3.out_width,
+                         kernel_size=(1, 3),
+                         stride=(1, 3),
+                         padding=(0, 1))
 
-        in_channels = out_channels
-        out_channels = max(out_channels // 2, 1)
-        self.conv5 = ConvUnit(in_channels=in_channels,
-                              out_channels=out_channels,
-                              height=self.pool2.out_height,
-                              width=self.pool2.out_width,
-                              kernel_size=self.kernel_size,
-                              stride=(2, 2),
-                              padding=self.padding,
-                              device=self.device)
-
-        in_channels = out_channels
-        out_channels = max(out_channels // 2, 1)
-        self.conv6 = ConvUnit(in_channels=in_channels,
-                              out_channels=out_channels,
-                              height=self.conv5.out_height,
-                              width=self.conv5.out_width,
-                              kernel_size=self.kernel_size,
-                              stride=(2, 2),
-                              padding=self.padding,
-                              device=self.device)
-
-        self.fc_size = out_channels * self.conv6.out_height * self.conv6.out_width
-        self.fc = nn.Linear(self.fc_size, self.n_classes)
+        self.fc_input_size = self.conv3.out_channels * self.pool3.out_height * self.pool3.out_width
+        if self.fc_size < 1:
+            self.fc = nn.Linear(self.fc_input_size, self.n_classes)
+        else:
+            self.fc = nn.Sequential(nn.Linear(self.fc_input_size, self.fc_size),
+                                    nn.ReLU(),
+                                    nn.Linear(self.fc_size, self.n_classes))
         self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
-        out = self.pool1(self.conv2(self.conv1(x)))
-        out = self.pool2(self.conv4(self.conv3(out)))
-        out = self.conv6(self.conv5(out))
+        out = self.pool1(self.conv1(x))
+        out = self.pool2(self.conv2(out))
+        out = self.pool3(self.conv3(out))
 
         out = self.fc(torch.flatten(out, 1))
         out = self.softmax(out)
@@ -228,7 +197,7 @@ def _conv_trial_proc_func(trial: np.ndarray):
     return np.nan_to_num(proc_trial, nan=0)
 
 
-def train_gru(model: Any,
+def train_conv(model: Any,
               x_train: np.ndarray,
               y_train: np.ndarray,
               x_test: np.ndarray,
@@ -247,7 +216,7 @@ def train_gru(model: Any,
                      n_epochs=n_epochs)
 
 
-def predict_gru(model: Any,
+def predict_conv(model: Any,
                 x_test: np.ndarray,
                 y_test: np.ndarray = None,
                 criterion: Any = None,
