@@ -46,11 +46,13 @@ def create_spectrum_dataset(data: dict,
     root_path = make_dir(os.path.join(get_data_path(), 'statistics_dataset', hash))
     statistics = []
     labels = []
+    person_idxs = []
 
     _cut_by_time(data, start_time)
 
     for i, (key, value) in enumerate(data.items()):
         statistic_path = os.path.join(root_path, f'{key}.npy')
+        info = value[0]
 
         if os.path.exists(statistic_path):
             statistic = np.load(statistic_path)
@@ -64,11 +66,13 @@ def create_spectrum_dataset(data: dict,
 
         statistics.append(statistic)
         labels += [i] * statistic.shape[0]
+        person_idxs.append(info['person_idx'].to_numpy())
 
     statistics = np.vstack(statistics)
     labels = np.array(labels, dtype=int)
+    person_idxs = np.hstack(person_idxs)
 
-    return statistics, labels
+    return statistics, labels, person_idxs
 
 
 def create_sequence_dataset(data: dict,
@@ -76,17 +80,20 @@ def create_sequence_dataset(data: dict,
                             start_time: float = 0.0):
     seq_data = []
     labels = []
+    person_idxs = []
 
     _cut_by_time(data, start_time)
 
     for i, (_, value) in enumerate(data.items()):
-        trials = value[2]
+        info, trials = value[0], value[2]
         filtered_trials = bandpass_filter.filter(trials)
 
         seq_data.append(filtered_trials)
         labels += [i] * filtered_trials.shape[0]
+        person_idxs.append(info['person_idx'].to_numpy())
 
     seq_data = np.vstack(seq_data)
     labels = np.array(labels, dtype=int)
+    person_idxs = np.hstack(person_idxs)
 
-    return seq_data, labels
+    return seq_data, labels, person_idxs

@@ -131,3 +131,4 @@ dmypy.json
 *.mat
 *.npy
 *.parquet
+.vscode
