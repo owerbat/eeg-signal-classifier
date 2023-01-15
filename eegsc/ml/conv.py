@@ -107,16 +107,13 @@ class ConvNet(nn.Module):
     def __init__(self,
                  input_shape: tuple,
                  n_classes: int,
-                 kernel_size: int = 5,
                  fc_size: int = 0,
                  device: str = 'cpu') -> None:
         super().__init__()
 
         self.input_shape = input_shape
         self.n_classes = n_classes
-        self.kernel_size = kernel_size
         self.fc_size = fc_size
-        self.padding = self.kernel_size // 2
         self.device = device
 
         self.sensors_num = 32
@@ -173,6 +170,22 @@ class ConvNet(nn.Module):
                                     nn.ReLU(),
                                     nn.Linear(self.fc_size, self.n_classes))
         self.softmax = nn.LogSoftmax(dim=1)
+
+        # self.apply(self._init_weights)
+
+    # def _init_weights(self, module: Any):
+    #     if isinstance(module, ConvUnit):
+    #         print('_init_weights ConvUnit')
+    #         # module.conv.weight.data.xavier_uniform_()
+    #         nn.init.xavier_uniform(module.conv.weight)
+    #         if module.conv.bias is not None:
+    #             # module.conv.bias.data.xavier_uniform_()
+    #             nn.init.xavier_uniform(module.conv.bias)
+    #     elif isinstance(module, nn.Linear):
+    #         print('_init_weights Linear')
+    #         nn.init.xavier_uniform(module.weight)
+    #         if module.conv.bias is not None:
+    #             nn.init.xavier_uniform(module.bias)
 
     def forward(self, x):
         out = self.pool1(self.conv1(x))
