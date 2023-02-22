@@ -22,15 +22,13 @@ def train_test_split(data: np.ndarray,
     train_idxs = np.where(~np.isin(person_idxs, test_person_idxs))[0]
     test_idxs = np.where(np.isin(person_idxs, test_person_idxs))[0]
 
+    rng.shuffle(train_idxs)
+    rng.shuffle(test_idxs)
+
     x_train = data[train_idxs]
     y_train = labels[train_idxs]
     x_test = data[test_idxs]
     y_test = labels[test_idxs]
-
-    rng.shuffle(x_train)
-    rng.shuffle(y_train)
-    rng.shuffle(x_test)
-    rng.shuffle(y_test)
 
     return x_train, x_test, y_train, y_test
 
@@ -41,7 +39,9 @@ def cross_val_score(data: np.ndarray,
                     model: Any,
                     metric: Callable,
                     n_test_persons: int = 3,
-                    random_state: int = None):
+                    random_state: int = None,
+                    train_score: bool = True,
+                    data_preprocessor: Callable = None):
     rng = np.random.default_rng(random_state)
 
     unique_persons = np.unique(person_idxs)
@@ -65,12 +65,23 @@ def cross_val_score(data: np.ndarray,
                                                             test_persons=test_persons,
                                                             random_state=random_state)
 
+        if data_preprocessor is not None:
+            x_train, x_test = data_preprocessor(x_train, x_test)
+
         model.fit(x_train, y_train)
 
         persons.append(test_persons)
-        train_metrics.append(metric(y_train, model.predict(x_train)))
+        if train_score:
+            train_metrics.append(metric(y_train, model.predict(x_train)))
         test_metrics.append(metric(y_test, model.predict(x_test)))
+        print(f'score {test_persons}: {test_metrics[-1]}')
 
-    return pd.DataFrame({'test_persons': persons,
-                         'train_metrics': train_metrics,
-                         'test_metrics': test_metrics})
+    if train_score:
+        result = pd.DataFrame({'test_persons': persons,
+                               'train_metrics': train_metrics,
+                               'test_metrics': test_metrics})
+    else:
+        result = pd.DataFrame({'test_persons': persons,
+                               'test_metrics': test_metrics})
+
+    return result

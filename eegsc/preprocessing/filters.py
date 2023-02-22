@@ -27,3 +27,27 @@ class BandPassFilter:
             result[i, :, :] = filtered
 
         return result
+
+
+class FFTFilter:
+    def __init__(self, min_norm_power: float = .2) -> None:
+        self.min_norm_power = min_norm_power
+
+    def _filter_1d(self, signal: np.ndarray):
+        fft = scipy.fft.rfft(signal)
+        norm_fft = np.abs(fft) / np.abs(fft).max()
+
+        filtered_fft = fft.copy()
+        filtered_fft[np.where(norm_fft < self.min_norm_power)[0]] = 0
+        filtered_signal = scipy.fft.irfft(filtered_fft)
+
+        return filtered_signal
+
+    def filter(self, signals: np.ndarray):
+        result = np.zeros(signals.shape)
+
+        for i, sample in enumerate(signals):
+            for j, signal in enumerate(sample):
+                result[i, j, :] = self._filter_1d(signal)
+
+        return result
