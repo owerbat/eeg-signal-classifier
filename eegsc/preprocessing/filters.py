@@ -39,7 +39,7 @@ class FFTFilter:
 
         filtered_fft = fft.copy()
         filtered_fft[np.where(norm_fft < self.min_norm_power)[0]] = 0
-        filtered_signal = scipy.fft.irfft(filtered_fft)
+        filtered_signal = scipy.fft.irfft(filtered_fft, n=len(signal))
 
         return filtered_signal
 

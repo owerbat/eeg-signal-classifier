@@ -19,7 +19,7 @@ def _cut_by_time(data: dict, start_time: float):
             max_len = max(max_len, len(idxs))
 
     if max_len == 0:
-        raise ValueError(f'start_time is bigger than max time')
+        raise ValueError('start_time is bigger than max time')
 
     for i, (key, value) in enumerate(data.items()):
         info, times, trials = value
@@ -40,15 +40,23 @@ def create_spectrum_dataset(data: dict,
                             spectrum_transformer: SpectrumTransformer,
                             compute_stat: bool = True,
                             start_time: float = 0.0,
+                            is_len_equal: bool = False,
                             save: bool = True):
-    hash = f'{bandpass_filter.order}_{spectrum_transformer.order}_' + \
-           f'{spectrum_transformer.psd_method}_{compute_stat}_{start_time}'
+    hash = '_'.join([str(x) for x in [bandpass_filter.order,
+                                      spectrum_transformer.order,
+                                      spectrum_transformer.psd_method,
+                                      compute_stat,
+                                      is_len_equal,
+                                      start_time]])
     root_path = make_dir(os.path.join(get_data_path(), 'statistics_dataset', hash))
     statistics = []
     labels = []
     person_idxs = []
 
-    _cut_by_time(data, start_time)
+    if is_len_equal:
+        _cut_by_time_equal(data, start_time)
+    else:
+        _cut_by_time(data, start_time)
 
     for i, (key, value) in enumerate(data.items()):
         statistic_path = os.path.join(root_path, f'{key}.npy')
@@ -58,6 +66,8 @@ def create_spectrum_dataset(data: dict,
             statistic = np.load(statistic_path)
         else:
             trials = value[2]
+            if np.isnan(trials).any():
+                raise ValueError(f'NaNs: {key}')
             filtered_trials = bandpass_filter.filter(trials)
             statistic = spectrum_transformer.transform(filtered_trials, compute_stat)
 
@@ -82,7 +92,7 @@ def _cut_by_time_equal(data: dict, start_time: float):
     for _, value in data.items():
         times = value[1]
         for time in times:
-            idxs = np.argwhere(time != np.nan)
+            idxs = np.argwhere(~np.isnan(time))
 
             min_len = min(min_len, len(idxs))
             max_len = max(max_len, len(idxs))
