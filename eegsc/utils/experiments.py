@@ -45,6 +45,7 @@ def create_spectrum_dataset(data: dict,
     hash = '_'.join([str(x) for x in [bandpass_filter.order,
                                       spectrum_transformer.order,
                                       spectrum_transformer.psd_method,
+                                      spectrum_transformer.features_set,
                                       compute_stat,
                                       is_len_equal,
                                       start_time]])
@@ -66,7 +67,7 @@ def create_spectrum_dataset(data: dict,
             statistic = np.load(statistic_path)
         else:
             trials = value[2]
-            if np.isnan(trials).any():
+            if is_len_equal and np.isnan(trials).any():
                 raise ValueError(f'NaNs: {key}')
             filtered_trials = bandpass_filter.filter(trials)
             statistic = spectrum_transformer.transform(filtered_trials, compute_stat)

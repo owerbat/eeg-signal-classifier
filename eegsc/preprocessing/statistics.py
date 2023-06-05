@@ -190,6 +190,8 @@ class TRPStatisticsTransformer(BaseStatisticsTransformer):
                     mid = len(squared) // 2
                     no_action = np.log(np.nanmean(squared[:mid]))
                     action = np.log(np.nanmean(squared[mid:]))
+                    # print(f'squared: {squared.shape}')
+                    # print(f'squared: {squared}')
                     result[i, j] = action - no_action
 
             return result

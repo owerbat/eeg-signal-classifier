@@ -11,9 +11,10 @@ class SpectrumTransformer:
                  order: int = 2,
                  signal_duration: float = 10,
                  psd_method: str = 'periodogram',
-                 ) -> None:
+                 features_set: str = 'ampl_freq') -> None:
         self.order = order
         self.psd_method = psd_method
+        self.features_set = features_set
 
         self.filters = {
             'delta': BandPassFilter(order, 1, 4, signal_duration),
@@ -30,13 +31,17 @@ class SpectrumTransformer:
             signal_duration=signal_duration
         )
 
-        # self.transformers = [self.ampl_transformer, self.freq_transformer]
-        self.transformers = [
-            IAFStatisticsTransformer(psd_method, signal_duration),
-            PAFStatisticsTransformer(psd_method, signal_duration),
-            MeanPSDStatisticsTransformer(psd_method, signal_duration),
-            TRPStatisticsTransformer(),
-        ]
+        if features_set == 'ampl_freq':
+            self.transformers = [self.ampl_transformer, self.freq_transformer]
+        elif features_set == 'iaf_paf_psd_trp':
+            self.transformers = [
+                IAFStatisticsTransformer(psd_method, signal_duration),
+                PAFStatisticsTransformer(psd_method, signal_duration),
+                MeanPSDStatisticsTransformer(psd_method, signal_duration),
+                TRPStatisticsTransformer(),
+            ]
+        else:
+            raise ValueError()
 
         self.columns = []
         for transformer in self.transformers:
